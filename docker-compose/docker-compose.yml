@@ -1,0 +1,85 @@
+services:
+
+  jwt-this.org:   
+    image: "tr1ck3r/jwt-this:latest"
+    container_name: jwt-this
+    ports:
+      - "${JWT_EXT_PORT}:${JWT_INT_PORT}"
+    command: --config-name "Firefly Playground" --policy-names "Firefly Playground" -u ${JWT_ISSUER} -a ${JWT_AUDIENCE} -t RSA
+    profiles:
+      - firefly
+      - jwtthis
+    networks: 
+      - firefly
+
+  jwt-wait:
+    depends_on:
+        jwt-this.org: 
+          condition: service_started
+    image: "busybox"
+    command: "sleep 5"
+
+  mysql:
+    container_name: mysql
+    image: "mysql:8.2.0"
+    profiles:
+      - firefly
+    ports:
+      - 3306:3306
+    networks:
+      - firefly
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_USERNAME=${MYSQL_USERNAME}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DBNAME}
+
+  firefly:
+    depends_on:
+        jwt-wait: 
+          condition: service_completed_successfully
+    image: "registry.venafi.cloud/public/venafi-images/firefly:latest"
+    container_name: firefly
+    privileged: true
+    ports:
+      - "${REST_EXT_PORT}:${REST_INT_PORT}"
+      - "${GRPC_EXT_PORT}:${GRPC_INT_PORT}"
+    command: run -c /etc/firefly/config.yaml
+    volumes:
+       - ${PWD}/config:/etc/firefly:rw
+       - ${PWD}/trust:/etc/firefly/trust:rw \
+       - $LOCAL_PKEY:/etc/firefly/svc-acct.key:ro \
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - ACCEPT_TERMS=Y
+    profiles:
+      - firefly
+    networks: 
+      - firefly
+  agent:
+    depends_on:
+        jwt-this.org: 
+          condition: service_started
+        firefly: 
+          condition: service_started
+        mysql: 
+          condition: service_started
+    image: "lg-agent:latest"
+    container_name: agent
+    profiles:
+      - firefly
+    networks: 
+      - firefly
+    environment:
+      - SAFE_NAME=${SAFE_NAME}
+      - ACCOUNT_NAME=${ACCOUNT_NAME}
+    build:
+      context: ./agent-build
+      dockerfile: Dockerfile
+
+networks:
+  firefly:
+    name: firefly
+    external: false
+

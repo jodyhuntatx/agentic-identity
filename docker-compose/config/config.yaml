@@ -1,0 +1,44 @@
+bootstrap:
+  selfSigned:
+    csr:
+      commonName: My Firefly
+      privateKey:
+        algorithm: ECDSA
+        size: 256
+      duration: 720h
+    trustRootDirectory: /etc/firefly/trust
+signer:
+  inMemory: true
+server:
+  grpc:
+    port: 8004
+    tls:
+      dnsNames:
+      - firefly
+      ipAddress: 127.0.0.1
+  rest:
+    port: 8002
+    tls:
+      dnsNames:
+      - firefly
+      ipAddress: 127.0.0.1
+  authentication:
+    jwt:
+      jwks:
+        urls:
+        - http://jwt-this.org:8000/.well-known/jwks.json
+  authorization:
+    configuration: "Firefly Playground"
+policies:
+- name: "Firefly Playground"
+  keyUsages:
+  - digitalSignature
+  - keyEncipherment
+  extendedKeyUsages:
+  - SERVER_AUTH
+  keyAlgorithm:
+    allowedValues:
+    - EC_P256
+    - RSA_2048
+    defaultValue: EC_P256
+  validityPeriod: P7D
