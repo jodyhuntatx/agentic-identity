@@ -15,5 +15,6 @@ echo "MYSQL_USERNAME=${MYSQL_USERNAME}" >> docker-compose/.env
 echo "MYSQL_PASSWORD=${MYSQL_PASSWORD}" >> docker-compose/.env
 echo "MYSQL_DBNAME=${MYSQL_DBNAME}" >> docker-compose/.env
 ## Agent container vars
+echo "WORKLOAD_ID=${WORKLOAD_ID}" >> docker-compose/.env
 echo "SAFE_NAME=${SAFE_NAME}" >> docker-compose/.env
 echo "ACCOUNT_NAME=${ACCOUNT_NAME}" >> docker-compose/.env

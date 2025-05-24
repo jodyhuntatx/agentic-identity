@@ -72,6 +72,7 @@ services:
     networks: 
       - firefly
     environment:
+      - WORKLOAD_ID=${WORKLOAD_ID}
       - SAFE_NAME=${SAFE_NAME}
       - ACCOUNT_NAME=${ACCOUNT_NAME}
     build:

@@ -122,15 +122,17 @@ EOF
 }
 
 ##### Replicate API key values from env vars into agent container keyring #####
+# API key values are set in demo-vars.sh by sourcing file outside of repo directory
 set_keys_in_agent_container() {
-    keynames=("openaiapi" "mistralapi" "tavilyapi" "langchainapi" "newjodybotpwd" "ansxlr8rapi")
-    for key in "${keynames[@]}" ; do
-      echo "${!key}" \
-        | $DOCKER exec -i agent keyring set cybrid $key
+    varnames=("openaiapi" "tavilyapi")
+    for var in "${varnames[@]}" ; do
+      # ${!var} syntax gets value of env var
+      echo "${!var}" \
+        | $DOCKER exec -i agent keyring set cybrid $var
     done
 }
 
-##### Configure jwt-this JWKS keys in Conjur #####
+##### Configure Conjur authn-jwt and create workload identity #####
 config_conjur_authn_jwt() {
   pushd conjur-admin
     ./1-config-jwt-authn.sh

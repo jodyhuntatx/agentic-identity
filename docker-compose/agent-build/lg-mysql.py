@@ -1,11 +1,17 @@
 #!/usr/bin/python3
 
 import asyncio
+import json
+import requests
 
+# suppress warning re: unverified https requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+#########################################
 # Setup logging to new/overwritten logfile with loglevel
 import logging
 from pathlib import Path
-
 Path("./logs").mkdir(parents=True, exist_ok=True)
 logfile = f"./logs/langgraph.log"
 logfmode = 'w'                # w = overwrite, a = append
@@ -14,16 +20,16 @@ loglevel = logging.DEBUG
 # Cuidado! DEBUG will leak secrets!
 logging.basicConfig(filename=logfile, encoding='utf-8', level=loglevel, filemode=logfmode)
 
+#########################################
 # Instantiate connection to hosted LLM
 import os, sys
+from langchain_openai import ChatOpenAI
+import httpx
 def _check_env(var: str):
     if not os.environ.get(var):
         print(f"Required env var {var} is not set.")
         sys.exit(-1)
 _check_env("OPENAI_API_KEY")
-
-from langchain_openai import ChatOpenAI
-import httpx
 llm = ChatOpenAI(
     model="gpt-3.5-turbo",
     temperature=0,
@@ -31,32 +37,18 @@ llm = ChatOpenAI(
     http_client=httpx.Client(verify=False),
 )
 
-'''
-from langchain_mistralai import ChatMistralAI
-llm = ChatMistralAI(
-    model="mistral-large-latest",
-    temperature=0,
-    max_retries=2,
-    # other params...
-)
-'''
-
 #########################################
 # Create search tool
 _check_env("TAVILY_API_KEY")
 from langchain_community.tools.tavily_search import TavilySearchResults
-searchtool = TavilySearchResults(max_results=2)
+searchtool = TavilySearchResults(max_results=3,
+                                topic="general",)
 
 #########################################
 # Create workload identity resources
-WORKLOAD_ID="ai-agent"
+WORKLOAD_ID=os.getenv("WORKLOAD_ID")
 
-#----------------------------------------
-# Authn cred provider functions
-import json
-import requests
-
-# function to get JWT from jwt-this
+# function to return JWT from jwt-this
 def jwtThisProvider() -> str:
     logging.info("IDP is jwt-this on localhost.")
     jwt_issuer_url = "http://jwt-this:8000/token"
@@ -73,23 +65,7 @@ def jwtThisProvider() -> str:
       raise RuntimeError(f"Error retrieving JWT. Response: {resp_dict}")
     return jwt
 
-# function to return K8s service account JWT
-def k8sSaProvider() -> str:
-    logging.info("IDP is K8s cluster.")
-    with open('/run/secrets/kubernetes.io/serviceaccount/token', 'r') as file:
-      jwt = file.read()
-    logging.debug(f"JWT: {jwt}")
-    return jwt
-
-# function to return API key
-import keyring
-def apiKeyProvider() -> str:
-  return keyring.get_password("cybrid", "ansxlr8rapi")
-
 # function to get certificate
-# suppress warning re: unverified https request
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 def getCert() -> tuple[str, str]:
   # contruct CSR to Firefly for workload
   SVC_NAME=WORKLOAD_ID
@@ -136,13 +112,13 @@ def getCert() -> tuple[str, str]:
 cert, pkey = getCert()
 
 #----------------------------------------
-# read agent<>secret map from file
+# read agent<>secret map from file and set as ConjurSecretsProvider class variable
 from agent_guard_core.credentials.conjur_secrets_provider import ConjurSecretsProvider
 with open('./agentSecretMap.json', 'r') as file:
     agent_secret_map = json.loads(file.read())
     ConjurSecretsProvider.set_agent_secret_map(agent_secret_map)
 
-# Get secrets from Conjur
+# Get secrets from Conjur as env vars
 from agent_guard_core.credentials.environment_manager import EnvironmentVariablesManager
 @EnvironmentVariablesManager.set_env_vars(ConjurSecretsProvider(agentName=WORKLOAD_ID, ext_authn_cred_provider=jwtThisProvider))
 async def main() -> None:
@@ -153,7 +129,6 @@ async def main() -> None:
   # Create SQLDatabase object
   from langchain_community.utilities.sql_database import SQLDatabase
 
-  #address='10.96.200.217'  # cluster ip
   address='mysql'
   port=3306                 # MySQL port
   database='petclinic'
@@ -296,13 +271,12 @@ Only use the following tables:
   graph_builder.add_edge(START, "chatbot")
   graph = graph_builder.compile()
 
-  '''
+  """
   from langgraph.checkpoint.memory import MemorySaver
   memory = MemorySaver()
   graph = graph_builder.compile(checkpointer=memory)
   config = {"configurable": {"thread_id": "1"}}
-  '''
-
+  """
   ###############################################
   # Run chatbot
 
