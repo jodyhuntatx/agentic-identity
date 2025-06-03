@@ -98,3 +98,13 @@ export MYSQL_PASSWORD=UHGMLk1
 export MYSQL_SERVER_ADDRESS=mysql
 export MYSQL_SERVER_PORT=3306
 export MYSQL_DBNAME=petclinic
+
+# Zilla PO Box (connector) vars
+export TENANT_DOMAIN="cybr-jodyh.access-ventures.com"
+# We are setting it to the default value as pobox directory is created in the home directory.
+export ZILLA_URL="https://app.zillasecurity.com"
+export CONTAINER_TOOL=$DOCKER
+export POBOX_BASEDIR=/Users/Jody.Hunt/AIML/agentic-identity/zilla/pobox-deployment
+export POBOX_REGISTRY="508384223771.dkr.ecr.us-east-1.amazonaws.com"            # POBox registry URL
+export POBOX_IMAGE="$POBOX_REGISTRY/zinc:latest"                                # POBox image name
+export ZILLA_API_KEY_FILE_PATH="$POBOX_BASEDIR/Zilla_API_Key"
